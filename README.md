@@ -82,3 +82,24 @@ Make sure to properly align the barcodes when scanning:
 - Ensure good lighting
 - Keep the barcode within 6-12 inches from the camera
 - Align the barcode horizontally in the camera view
+
+## Copyright and Usage Notice
+
+© 2025 St. Jerome's Academy Attendance Checker by Anthon Chris Ellys S. Sepacio. All Rights Reserved.
+
+This project is developed primarily for:
+1. Academic research purposes
+2. Portfolio demonstration
+3. Educational technology advancement
+
+**Research & Portfolio Usage:**
+- This attendance system serves as a demonstration of modern web technologies and automated attendance tracking solutions
+- The implementation showcases practical applications of barcode technology in educational settings
+- The codebase demonstrates proficiency in Next.js, TypeScript, and real-time data processing
+
+Any use, reproduction, or distribution of this software must:
+- Maintain all copyright notices
+- Acknowledge the original source
+- Be used for non-commercial, educational, or research purposes only
+
+For any inquiries about usage or collaboration, please contact the repository owner.
