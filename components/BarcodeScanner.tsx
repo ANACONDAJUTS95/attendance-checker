@@ -3,9 +3,10 @@ import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/
 
 interface BarcodeScannerProps {
     onScan: (studentNumber: string) => void;
+    onCameraStatusChange: (isActive: boolean) => void;
 }
 
-export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
+export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerProps) {
     const [error, setError] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const readerRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -26,6 +27,17 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                 if (devices.length === 0) {
                     throw new Error('No camera found');
                 }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                
+                videoElement.srcObject = stream;
+                onCameraStatusChange(true);
 
                 await reader.decodeFromConstraints(
                     {
@@ -61,9 +73,15 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         return () => {
             if (readerRef.current) {
                 readerRef.current.reset();
+                onCameraStatusChange(false);
+            }
+            const videoElement = videoRef.current;
+            if (videoElement && videoElement.srcObject) {
+                const stream = videoElement.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
             }
         };
-    }, [onScan]);
+    }, [onScan, onCameraStatusChange]);
 
     return (
         <div className="w-full max-w-md mx-auto">

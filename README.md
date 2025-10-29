@@ -1,4 +1,4 @@
-# Saint Jerome's Academy Attendance Checker
+# St. Jerome's Academy Attendance Checker
 
 A web-based attendance system that uses PDF417 barcodes to track student attendance. This system allows for quick and efficient attendance tracking by scanning student-specific barcodes and automatically recording their time-in.
 
