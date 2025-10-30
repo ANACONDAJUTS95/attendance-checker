@@ -51,7 +51,7 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                     (result, error) => {
                         if (result) {
                             const text = result.getText();
-                            if (text.match(/^2023-\d{4}$/)) {
+                            if (text.match(/^2025-\d{4}$/)) {
                                 onScan(text);
                             }
                         }
