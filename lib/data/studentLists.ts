@@ -2,8 +2,11 @@ export interface Student {
     name: string;
     gender: 'male' | 'female';
     studentNumber: string;
-    timeIn?: string; // Optional since it will be filled when they check in
+    timeIn?: string;
 }
+
+/** Global class start time (24h "HH:MM"). Students scanning in after this are marked late. */
+export const CLASS_START_TIME = '07:00';
 
 export const students: Student[] = [
     { name: "Christine Austria", gender: "female", studentNumber: "2025-0001" },

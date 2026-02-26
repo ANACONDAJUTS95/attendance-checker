@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { CLASS_START_TIME } from '@/lib/data/studentLists';
 
 interface Student {
   name: string;
@@ -9,28 +9,27 @@ interface Student {
 interface StudentListTableProps {
   title: string;
   students: Student[];
-  onAttendanceMarked?: (studentNumber: string, timeIn: string) => void;
 }
 
-export function StudentListTable({ title, students, onAttendanceMarked }: StudentListTableProps) {
-  const [attendanceData, setAttendanceData] = useState<Record<string, string>>({});
+function isLate(timeIn: string): boolean {
+  const scheduledTimeIn = CLASS_START_TIME;
+  // Parse the actual time-in (12h format produced by toLocaleTimeString)
+  const [timePart, period] = timeIn.trim().split(' ');
+  const [rawHour, rawMinute] = timePart.split(':').map(Number);
 
-  const markAttendance = (studentNumber: string) => {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-    
-    setAttendanceData(prev => ({
-      ...prev,
-      [studentNumber]: timeString
-    }));
+  let actualHour = rawHour % 12;
+  if (period?.toUpperCase() === 'PM') actualHour += 12;
 
-    onAttendanceMarked?.(studentNumber, timeString);
-  };
+  const actualMinutes = actualHour * 60 + rawMinute;
 
+  // Parse the scheduled time (24h "HH:MM")
+  const [schedHour, schedMinute] = scheduledTimeIn.split(':').map(Number);
+  const scheduledMinutes = schedHour * 60 + schedMinute;
+
+  return actualMinutes > scheduledMinutes;
+}
+
+export function StudentListTable({ title, students }: StudentListTableProps) {
   return (
     <div className="w-full max-w-2xl mx-4">
       <h2 className="text-2xl font-bold mb-4 text-[#111111]">{title}</h2>
@@ -44,18 +43,41 @@ export function StudentListTable({ title, students, onAttendanceMarked }: Studen
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                 Time In
               </th>
+              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                Status
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-gray-200">
             {students.map((student) => {
-              const timeIn = attendanceData[student.studentNumber] || student.timeIn;
+              const timeIn = student.timeIn;
+              const late = timeIn ? isLate(timeIn) : false;
+
+              const cellStyle: React.CSSProperties = {
+                backgroundColor: timeIn
+                  ? late
+                    ? '#fecaca' // pastel red  — late (red-200)
+                    : '#bbf7d0' // pastel green — on time (green-200)
+                  : '#ffffff',  // white — absent
+              };
+
+              const nameColor = late ? '#b91c1c' : '#111827'; 
+              const valueColor = late ? '#dc2626' : '#16a34a'; 
+
               return (
-                <tr key={student.studentNumber} className={timeIn ? "bg-green-50" : undefined}>
-                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                <tr key={student.studentNumber}>
+                  <td style={{ ...cellStyle, color: nameColor }} className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium">
                     {student.name}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                    {timeIn || "Not yet present"}
+                  <td style={{ ...cellStyle, color: timeIn ? valueColor : '#6b7280' }} className="whitespace-nowrap px-3 py-4 text-sm">
+                    {timeIn ?? 'Not yet present'}
+                  </td>
+                  <td style={{ ...cellStyle, color: timeIn ? valueColor : '#6b7280' }} className="whitespace-nowrap px-3 py-4 text-sm font-semibold">
+                    {timeIn
+                      ? late
+                        ? '⚠️ Late'
+                        : timeIn
+                      : '—'}
                   </td>
                 </tr>
               );
