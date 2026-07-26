@@ -3,19 +3,32 @@
 import { StudentListTable } from "@/components/StudentListTable";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { FaCheckCircle } from "react-icons/fa";
-import { students } from "@/lib/data/studentLists";
+import { CLASS_SECTIONS, getSectionById } from "@/lib/data/studentLists";
 import { useState, useCallback } from "react";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export default function Home() {
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [scannedStudents, setScannedStudents] = useState<Record<string, string>>({});
   const [isCameraActive, setIsCameraActive] = useState(false);
-  
+
+  const selectedSection = selectedSectionId ? getSectionById(selectedSectionId) : undefined;
+  const students = selectedSection?.students ?? [];
+
   const femaleStudents = students.filter(student => student.gender === 'female')
     .map(student => ({ ...student, timeIn: scannedStudents[student.studentNumber] }));
   const maleStudents = students.filter(student => student.gender === 'male')
     .map(student => ({ ...student, timeIn: scannedStudents[student.studentNumber] }));
+
+  const handleChangeClass = useCallback(() => {
+    const confirmed = window.confirm(
+      "Changing class will clear the attendance scanned so far for this session. Continue?"
+    );
+    if (!confirmed) return;
+    setScannedStudents({});
+    setSelectedSectionId(null);
+  }, []);
 
   const handleScan = useCallback((studentNumber: string) => {
     setScannedStudents(prev => {
@@ -52,7 +65,7 @@ export default function Home() {
     doc.setFontSize(16);
     doc.text('St. Jerome\'s Academy - Attendance Sheet', 15, 15);
     doc.setFontSize(12);
-    doc.text(dateStr, 15, 25);
+    doc.text(`${selectedSection?.label ?? ''} — ${dateStr}`, 15, 25);
 
     // Prepare female students data
     const femaleTableData = femaleStudents.map(student => [
@@ -101,12 +114,51 @@ export default function Home() {
 
     // Save the PDF
     doc.save(`attendance-${today.toISOString().split('T')[0]}.pdf`);
-  }, [femaleStudents, maleStudents]);
+  }, [femaleStudents, maleStudents, students.length, selectedSection]);
+
+  if (!selectedSection) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center py-8 bg-[#E2F1F6] px-4">
+        <h1 className="text-4xl font-black uppercase text-[#111111] mb-8">Attendance Checker</h1>
+        <div className="w-full max-w-sm flex flex-col gap-3">
+          <label htmlFor="section-select" className="text-lg font-semibold text-[#111111]">
+            Select your class
+          </label>
+          <select
+            id="section-select"
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) setSelectedSectionId(e.target.value);
+            }}
+            className="w-full rounded border-1 border-black/10 bg-white px-3 py-2 text-[#111111]"
+          >
+            <option value="" disabled>
+              Choose a class section
+            </option>
+            {CLASS_SECTIONS.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center py-8 bg-[#E2F1F6]">
       <div className="w-full flex flex-col items-center">
         <h1 className="text-4xl font-black uppercase text-[#111111]">Attendance Checker</h1>
+        <div className="flex flex-row items-center justify-center gap-4 mt-2">
+          <p className="text-lg text-black/60">{selectedSection.label}</p>
+          <button
+            onClick={handleChangeClass}
+            className="text-sm font-semibold text-blue-600 hover:text-blue-800 underline transition-colors"
+          >
+            Change class
+          </button>
+        </div>
         <div className="flex flex-row items-center justify-center gap-4 mt-2 mb-8">
           <div className="flex flex-row gap-2 items-center justify-center">
             <FaCheckCircle className={`${isCameraActive ? 'text-green-500' : 'text-black/50'} text-base transition-colors`} />
@@ -117,26 +169,26 @@ export default function Home() {
         </div>
 
         <div className="mb-8 w-full max-w-xl mx-auto px-4">
-          <BarcodeScanner 
-            onScan={handleScan} 
+          <BarcodeScanner
+            onScan={handleScan}
             onCameraStatusChange={setIsCameraActive}
           />
         </div>
       </div>
-      
+
       <div className="flex flex-col md:flex-row gap-8 items-start justify-center w-full px-4">
-        <StudentListTable 
-          title="Female Students" 
+        <StudentListTable
+          title="Female Students"
           students={femaleStudents}
         />
-        <StudentListTable 
-          title="Male Students" 
+        <StudentListTable
+          title="Male Students"
           students={maleStudents}
         />
       </div>
 
       <div className="flex mt-6 w-[78%] flex-col gap-2">
-        <button 
+        <button
           onClick={handleExportPDF}
           className="text-white font-semibold bg-blue-500 px-4 py-2 rounded w-fit hover:bg-blue-600 transition-colors"
         >

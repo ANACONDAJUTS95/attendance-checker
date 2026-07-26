@@ -14,13 +14,13 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
     useEffect(() => {
         const hints = new Map();
         hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.PDF_417]); // Specifically look for PDF417 barcodes
-        
+
         const reader = new BrowserMultiFormatReader(hints);
         readerRef.current = reader;
+        const videoElement = videoRef.current;
 
         const startScanning = async () => {
             try {
-                const videoElement = videoRef.current;
                 if (!videoElement) return;
 
                 const devices = await reader.listVideoInputDevices();
@@ -51,7 +51,10 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                     (result, error) => {
                         if (result) {
                             const text = result.getText();
-                            if (text.match(/^2025-\d{4}$/)) {
+                            // Student number format: <4-digit cohort year>-<4-digit student number>,
+                            // e.g. "2025-0001" or "2026-0042". Update this pattern if the
+                            // numbering scheme ever changes (e.g. to a different digit count).
+                            if (text.match(/^\d{4}-\d{4}$/)) {
                                 onScan(text);
                             }
                         }
@@ -75,7 +78,6 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                 readerRef.current.reset();
                 onCameraStatusChange(false);
             }
-            const videoElement = videoRef.current;
             if (videoElement && videoElement.srcObject) {
                 const stream = videoElement.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());

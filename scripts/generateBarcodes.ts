@@ -1,7 +1,7 @@
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 import bwipjs from 'bwip-js';
-import { students, Student } from '../lib/data/studentLists';
+import { students } from '../lib/data/studentLists';
 
 // Function to generate PDF417 barcode for a student
 async function generatePDF417(studentNumber: string): Promise<Buffer> {
