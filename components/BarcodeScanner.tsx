@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library';
 
 interface BarcodeScannerProps {
@@ -6,12 +6,29 @@ interface BarcodeScannerProps {
     onCameraStatusChange: (isActive: boolean) => void;
 }
 
+type ScannerErrorKind = 'unsupported' | 'permission-denied' | 'no-camera' | 'other';
+
+interface ScannerError {
+    kind: ScannerErrorKind;
+    message: string;
+}
+
+const isCameraSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+
 export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerProps) {
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<ScannerError | null>(null);
+    const [retryKey, setRetryKey] = useState(0);
     const videoRef = useRef<HTMLVideoElement>(null);
     const readerRef = useRef<BrowserMultiFormatReader | null>(null);
 
+    const handleRetry = useCallback(() => {
+        setError(null);
+        setRetryKey((key) => key + 1);
+    }, []);
+
     useEffect(() => {
+        if (!isCameraSupported) return;
+
         const hints = new Map();
         hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.PDF_417]); // Specifically look for PDF417 barcodes
 
@@ -25,7 +42,11 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
 
                 const devices = await reader.listVideoInputDevices();
                 if (devices.length === 0) {
-                    throw new Error('No camera found');
+                    setError({
+                        kind: 'no-camera',
+                        message: "No camera was found on this device. Connect a camera and try again.",
+                    });
+                    return;
                 }
 
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -35,7 +56,7 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                         height: { ideal: 720 }
                     }
                 });
-                
+
                 videoElement.srcObject = stream;
                 onCameraStatusChange(true);
 
@@ -61,13 +82,28 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                         if (error) {
                             // Don't set errors for normal scanning attempts
                             if (error.name !== 'NotFoundException') {
-                                setError(error.message || 'Scanning error');
+                                setError({ kind: 'other', message: error.message || 'Scanning error' });
                             }
                         }
                     }
                 );
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'Failed to start scanner');
+                if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+                    setError({
+                        kind: 'permission-denied',
+                        message: "Camera access was denied. Allow camera access for this site in your browser settings, then try again.",
+                    });
+                } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+                    setError({
+                        kind: 'no-camera',
+                        message: "No camera was found on this device. Connect a camera and try again.",
+                    });
+                } else {
+                    setError({
+                        kind: 'other',
+                        message: err instanceof Error ? err.message : 'Failed to start scanner',
+                    });
+                }
             }
         };
 
@@ -83,7 +119,14 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                 stream.getTracks().forEach(track => track.stop());
             }
         };
-    }, [onScan, onCameraStatusChange]);
+    }, [onScan, onCameraStatusChange, retryKey]);
+
+    const displayError: ScannerError | null = !isCameraSupported
+        ? {
+              kind: 'unsupported',
+              message: "Your browser doesn't support camera scanning. Please use a recent version of Chrome, Safari, or Edge.",
+          }
+        : error;
 
     return (
         <div className="w-full max-w-md mx-auto">
@@ -92,9 +135,17 @@ export function BarcodeScanner({ onScan, onCameraStatusChange }: BarcodeScannerP
                     ref={videoRef}
                     className="w-full h-[300px] object-cover"
                 />
-                {error && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-red-500 text-white p-2 text-sm text-center">
-                        {error}
+                {displayError && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-red-500 text-white p-2 text-sm text-center flex flex-col gap-2 items-center">
+                        <span>{displayError.message}</span>
+                        {displayError.kind !== 'unsupported' && (
+                            <button
+                                onClick={handleRetry}
+                                className="bg-white text-red-600 font-semibold text-xs px-3 py-1 rounded hover:bg-red-50 transition-colors"
+                            >
+                                Try again
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
